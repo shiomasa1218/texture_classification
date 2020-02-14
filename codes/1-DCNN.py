@@ -27,6 +27,10 @@ from tensorflow.keras.layers import MaxPooling1D, BatchNormalization, Flatten,Gl
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.callbacks import EarlyStopping, TensorBoard
 
+from datetime import datetime
+import time
+from tensorflow.keras.callbacks import Callback, TensorBoard
+
 import pandas as pd
 import random
 from sklearn.metrics import confusion_matrix, recall_score, precision_score, f1_score, classification_report,plot_confusion_matrix
@@ -48,7 +52,7 @@ VAL_RATE = 0.9
 # +
 #define
 EPOCH = 3000
-BATCH_SIZE = 256
+BATCH_SIZE = 128
 MINIBATCH = 64
 DROP_RATE = 0.5
 
@@ -58,7 +62,7 @@ FILTER_SIZE = 64
 DATA_START = 250
 DATA_LEN = 4096
 
-IN_DIR_PATH = "sa321_y"
+IN_DIR_PATH = "dft321"
 
 os.makedirs('../logs/'+IN_DIR_PATH+'/events',exist_ok=True)
 
@@ -185,49 +189,89 @@ def Mynet_squeeze():
     return model
 
 
-def plot_confusion_matrix(cm, classes,
-                          normalize=False,
+def plot_confusion_matrix(cm,
+                          target_names,
                           title='Confusion matrix',
-                          cmap=plt.cm.Blues):
+                          cmap=None,
+                          normalize=False):
     """
-    This function prints and plots the confusion matrix.
-    Normalization can be applied by setting `normalize=True`.
+    given a sklearn confusion matrix (cm), make a nice plot
+
+    Arguments
+    ---------
+    cm:           confusion matrix from sklearn.metrics.confusion_matrix
+
+    target_names: given classification classes such as [0, 1, 2]
+                  the class names, for example: ['high', 'medium', 'low']
+
+    title:        the text to display at the top of the matrix
+
+    cmap:         the gradient of the values displayed from matplotlib.pyplot.cm
+                  see http://matplotlib.org/examples/color/colormaps_reference.html
+                  plt.get_cmap('jet') or plt.cm.Blues
+
+    normalize:    If False, plot the raw numbers
+                  If True, plot the proportions
+
+    Usage
+    -----
+    plot_confusion_matrix(cm           = cm,                  # confusion matrix created by
+                                                              # sklearn.metrics.confusion_matrix
+                          normalize    = True,                # show proportions
+                          target_names = y_labels_vals,       # list of names of the classes
+                          title        = best_estimator_name) # title of graph
+
+    Citiation
+    ---------
+    http://scikit-learn.org/stable/auto_examples/model_selection/plot_confusion_matrix.html
+
     """
-    if normalize:
-        cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
-        print("Normalized confusion matrix")
-    else:
-        print('Confusion matrix, without normalization')
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import itertools
 
-    print(cm)
+    accuracy = np.trace(cm) / np.sum(cm).astype('float')
+    misclass = 1 - accuracy
 
+    if cmap is None:
+        cmap = plt.get_cmap('Blues')
+
+    plt.figure(figsize=(16, 9))
     plt.imshow(cm, interpolation='nearest', cmap=cmap)
     plt.title(title)
     plt.colorbar()
-    tick_marks = np.arange(len(classes))
-    plt.xticks(tick_marks, classes, rotation=45)
-    plt.yticks(tick_marks, classes)
 
-    fmt = '.2f' if normalize else 'd'
-    thresh = cm.max() / 2.
+    if target_names is not None:
+        tick_marks = np.arange(len(target_names))
+        plt.xticks(tick_marks, target_names, rotation=45)
+        plt.yticks(tick_marks, target_names)
+
+    if normalize:
+        cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+
+
+    thresh = cm.max() / 1.5 if normalize else cm.max() / 2
     for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
-        plt.text(j, i, format(cm[i, j], fmt),
-                 horizontalalignment="center",
-                 color="white" if cm[i, j] > thresh else "black")
+        if normalize:
+            plt.text(j, i, "{:0.4f}".format(cm[i, j]),
+                     horizontalalignment="center",
+                     color="white" if cm[i, j] > thresh else "black")
+        else:
+            plt.text(j, i, "{:,}".format(cm[i, j]),
+                     horizontalalignment="center",
+                     color="white" if cm[i, j] > thresh else "black")
 
     plt.tight_layout()
     plt.ylabel('True label')
     plt.xlabel('Predicted label')
     plt.savefig('../logs/'+IN_DIR_PATH+'/cm.png')
 
-
-# +
 model = Mynet_squeeze()
 model.summary()
 model.compile(loss='categorical_crossentropy',
-             optimizer=optimizers.Adam(lr=0.006, beta_1=0.9, beta_2=0.999, epsilon=1e-08),
+             optimizer=optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08),
              metrics=['accuracy'])
-
+start_time = time.time()
 history = model.fit(trainX,trainY, 
                     epochs=3000, 
                     batch_size=BATCH_SIZE, 
@@ -237,7 +281,8 @@ history = model.fit(trainX,trainY,
 #                                tf.keras.callbacks.EarlyStopping(monitor='val_loss',patience=700,verbose=0,mode='auto')
                               ]
                    )
-
+end_time = time.time()-start_time
+print('training_time : ',end_time)
 score = model.evaluate(valX, valY, batch_size=BATCH_SIZE, verbose=0)
 
 
@@ -263,7 +308,7 @@ def plot_history_acc(fit):
     axR.set_title('model accuracy')
     axR.set_xlabel('epoch')
     axR.set_ylabel('accuracy')
-    axR.legend(loc='upper right')
+    plt.legend(loc='lower right')
 
 plot_history_loss(history)
 plot_history_acc(history)
@@ -276,24 +321,21 @@ pred_y = model.predict(valX)
 pred_y_c = np.argmax(pred_y,axis=1)
 # pred_y_one_hot = np.identity(len(class_list))[pred_y_c]
 true_y = np.argmax(valY,axis=1)
-confusion_mtx = confusion_matrix(true_y, pred_y_c) 
-plot_confusion_matrix(confusion_mtx, classes=class_list)
+confusion_mtx = confusion_matrix(true_y, pred_y_c)
+np.savetxt('../logs/'+IN_DIR_PATH+'/cm.csv', confusion_mtx)
+plot_confusion_matrix(confusion_mtx, target_names=class_list)
 plt.show()
 cr = classification_report(true_y,pred_y_c,labels=class_list)
 f = open('../logs/'+IN_DIR_PATH+'/cr.txt','w')
 f.write(cr)
 f.close()
+f = open('../logs/'+IN_DIR_PATH+'/trainingtime.txt','w')
+f.write(str(end_time))
+f.close()
 
 keras.backend.clear_session()
 gc.collect()
 # -
-
-
-
-
-
-
-
 
 
 

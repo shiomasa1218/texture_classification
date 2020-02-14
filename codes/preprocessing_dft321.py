@@ -19,6 +19,7 @@ import csv
 import glob
 from scipy.signal import butter, filtfilt 
 import scipy.fftpack
+import time
 
 # +
 preprocessed_name = "dft321"
@@ -63,8 +64,8 @@ def smtdA(csvdata):
     return condA,condA_real,condA_imag
 
 
-# -
-
+# +
+start_time = time.time()
 for d in input_dir:
     print(d)
     if ".DS_Store" in d:
@@ -102,6 +103,13 @@ for d in input_dir:
     print(realA.shape)
     preprocessed = np.hstack([axis_time,realA])
     np.savetxt(out_dir_path+'/'+d[12:-4]+'_'+preprocessed_name+'.csv', preprocessed, delimiter=',')
+
+end_time = time.time()-start_time
+
+f = open(out_dir_path+'/'+d[12:-4]+'_'+preprocessed_name+'_processtime.txt','w')
+f.write(str(end_time))
+f.close()
+# -
 
 
 

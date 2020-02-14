@@ -1,0 +1,15 @@
+              precision    recall  f1-score   support
+
+  ArtLeather       0.00      0.00      0.00         0
+   GreenTile       0.00      0.00      0.00         0
+  ArtGrass01       0.00      0.00      0.00         0
+   CorkSheet       0.00      0.00      0.00         0
+   EnbiPunch       0.00      0.00      0.00         0
+  Luncheon01       0.00      0.00      0.00         0
+  Luncheon03       0.00      0.00      0.00         0
+  Luncheon02       0.00      0.00      0.00         0
+    Carpet01       0.00      0.00      0.00         0
+
+   micro avg       0.00      0.00      0.00         0
+   macro avg       0.00      0.00      0.00         0
+weighted avg       0.00      0.00      0.00         0
